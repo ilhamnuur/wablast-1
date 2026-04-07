@@ -4,7 +4,7 @@ import { useNotification } from "../../context/NotificationContext";
 import { automationAPI, contactAPI } from "../../services/api";
 
 const ScheduledMessages = () => {
-  const { sessions, addDebugInfo } = useApp();
+  const { availableSessions, addDebugInfo } = useApp();
   const { showStatus } = useNotification();
   const [scheduledList, setScheduledList] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -105,8 +105,10 @@ const ScheduledMessages = () => {
                 required
               >
                 <option value="">Pilih Sesi</option>
-                {sessions.map((s) => (
-                  <option key={s.sessionId} value={s.sessionId}>{s.sessionId}</option>
+                {availableSessions && availableSessions.map((s) => (
+                  <option key={typeof s === 'string' ? s : s.sessionId} value={typeof s === 'string' ? s : s.sessionId}>
+                    {typeof s === 'string' ? s : s.sessionId}
+                  </option>
                 ))}
               </select>
             </div>

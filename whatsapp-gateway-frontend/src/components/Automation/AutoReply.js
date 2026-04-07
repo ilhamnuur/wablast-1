@@ -4,7 +4,7 @@ import { useNotification } from "../../context/NotificationContext";
 import { automationAPI } from "../../services/api";
 
 const AutoReply = () => {
-  const { sessions, addDebugInfo } = useApp();
+  const { availableSessions, addDebugInfo } = useApp();
   const { showStatus } = useNotification();
   const [autoreplyList, setAutoreplyList] = useState([]);
   const [formData, setFormData] = useState({
@@ -85,8 +85,10 @@ const AutoReply = () => {
                 required
               >
                 <option value="">Pilih Sesi</option>
-                {sessions.map((s) => (
-                  <option key={s.sessionId} value={s.sessionId}>{s.sessionId}</option>
+                {availableSessions && availableSessions.map((s) => (
+                  <option key={typeof s === 'string' ? s : s.sessionId} value={typeof s === 'string' ? s : s.sessionId}>
+                    {typeof s === 'string' ? s : s.sessionId}
+                  </option>
                 ))}
               </select>
             </div>
