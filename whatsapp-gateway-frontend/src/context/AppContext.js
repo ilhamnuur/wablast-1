@@ -15,7 +15,34 @@ export const AppProvider = ({ children }) => {
   const [activeTab, setActiveTab] = useState("session");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sessionName, setSessionName] = useState("mysession");
+  const [availableSessions, setAvailableSessions] = useState([]);
   const [uploadService, setUploadService] = useState("auto");
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  
+  const refreshSessions = async () => {
+    setSessionsLoading(true);
+    try {
+      const { sessionAPI } = await import("../services/api");
+      const response = await sessionAPI.getSessions();
+      const data = response.data.data || response.data;
+      let sessionList = [];
+      if (Array.isArray(data)) {
+        sessionList = data;
+      } else if (typeof data === "object" && data !== null) {
+        sessionList = Object.keys(data);
+      }
+      setAvailableSessions(sessionList);
+      
+      // If current sessionName is not in list and we have sessions, pick first
+      if (sessionList.length > 0 && (!sessionName || !sessionList.includes(sessionName))) {
+        setSessionName(sessionList[0]);
+      }
+    } catch (error) {
+      console.error("Refresh sessions error:", error);
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
 
   // Blast state with retry support
   const [blastInProgress, setBlastInProgress] = useState(false);
@@ -60,9 +87,14 @@ export const AppProvider = ({ children }) => {
     "Debug log akan muncul di sini...\n",
   ]);
 
-  // FIXED: Load groups and contacts from database on component mount
+  // Load initial data
   useEffect(() => {
     loadContactsAndGroups();
+    refreshSessions();
+    
+    // Auto refresh sessions every 30 seconds
+    const interval = setInterval(refreshSessions, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadContactsAndGroups = async () => {
@@ -352,6 +384,9 @@ export const AppProvider = ({ children }) => {
     // Session State
     sessionName,
     setSessionName,
+    availableSessions,
+    sessionsLoading,
+    refreshSessions,
     uploadService,
     setUploadService,
 

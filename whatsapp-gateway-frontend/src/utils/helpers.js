@@ -3,6 +3,28 @@ export const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
+// Universal phone number formatter for Indonesia (converts 0... to 62...)
+export const formatPhoneNumber = (phone) => {
+  if (!phone || typeof phone !== "string") return "";
+  
+  // Clean phone number - remove spaces, dashes, parentheses, etc.
+  let cleaned = phone.replace(/[\s\-\(\)\+]/g, "").replace(/[^\d]/g, "");
+
+  if (cleaned.startsWith("0")) {
+    cleaned = "62" + cleaned.substring(1);
+  } else if (cleaned.startsWith("8")) {
+    // If user types 812... instead of 0812...
+    cleaned = "62" + cleaned;
+  }
+  
+  // If it's already 62... we keep it. If not, and it's long enough, we prefix 62
+  if (!cleaned.startsWith("62") && cleaned.length >= 9) {
+    cleaned = "62" + cleaned;
+  }
+
+  return cleaned;
+};
+
 // Enhanced phone number parsing with better validation
 export const parsePhoneNumbers = (phoneNumbersText) => {
   if (!phoneNumbersText || typeof phoneNumbersText !== "string") return [];
@@ -11,21 +33,7 @@ export const parsePhoneNumbers = (phoneNumbersText) => {
     .split(/[\n,;]+/)
     .map((phone) => phone.trim())
     .filter((phone) => phone.length > 0)
-    .map((phone) => {
-      // Clean phone number - remove spaces, dashes, parentheses
-      let cleaned = phone.replace(/[\s\-\(\)]/g, "").replace(/[^\d]/g, "");
-
-      // Convert to international format
-      if (cleaned.startsWith("0")) {
-        cleaned = "62" + cleaned.substring(1);
-      } else if (cleaned.startsWith("+62")) {
-        cleaned = cleaned.substring(1);
-      } else if (!cleaned.startsWith("62")) {
-        cleaned = "62" + cleaned;
-      }
-
-      return cleaned;
-    })
+    .map((phone) => formatPhoneNumber(phone))
     .filter((phone) => /^62\d{8,}$/.test(phone)) // Filter valid Indonesian phone numbers
     .filter((phone, index, arr) => arr.indexOf(phone) === index); // Remove duplicates
 };

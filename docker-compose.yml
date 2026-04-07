@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # ---------------------------------------------
+  # Backend Node.js (WhatsApp API Gateway)
+  # ---------------------------------------------
+  wablast-api:
+    build:
+      context: ./wa-gateway
+      dockerfile: Dockerfile
+    container_name: wablast_api
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    env_file:
+      - .env
+    volumes:
+      # Persistent volume for WhatsApp scanning sessions to avoid re-logging in every restart
+      - ./wa-gateway/wa_credentials:/app/wa_credentials
+    networks:
+      - wablast_network
+
+  # ---------------------------------------------
+  # Frontend React (Dashboard UI)
+  # ---------------------------------------------
+  wablast-ui:
+    build:
+      context: ./whatsapp-gateway-frontend
+      dockerfile: Dockerfile
+      args:
+        # Define API URL for frontend to communicate with backend
+        # Edit this if deploying to a remote server instead of localhost
+        - REACT_APP_API_URL=http://localhost:5001
+    container_name: wablast_ui
+    restart: unless-stopped
+    ports:
+      - "3030:80"   # Akses aplikasi frontend di browser pada port 3030
+    depends_on:
+      - wablast-api
+    networks:
+      - wablast_network
+
+networks:
+  wablast_network:
+    driver: bridge

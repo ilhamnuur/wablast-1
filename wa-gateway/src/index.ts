@@ -28,9 +28,9 @@ app.use(
 // Enhanced CORS configuration
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: (origin) => origin || "*", // Dynamically allow any origin matching the request
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "key"], // MUST allow 'key' header
     credentials: true,
   })
 );
@@ -117,9 +117,9 @@ initializeDatabase()
         port,
       },
       (info) => {
-        console.log(`🚀 Server is running on http://localhost:${info.port}`);
-        console.log(`📊 Health check: http://localhost:${info.port}/health`);
-        console.log(`📱 Contacts API: http://localhost:${info.port}/contact`);
+        console.log(`🚀 Server is running on http://10.10.10.195:${info.port}`);
+        console.log(`📊 Health check: http://10.10.10.195:${info.port}/health`);
+        console.log(`📱 Contacts API: http://10.10.10.195:${info.port}/contact`);
       }
     );
   })

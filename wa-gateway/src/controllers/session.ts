@@ -26,11 +26,11 @@ export const createSessionController = () => {
     async (c) => {
       const payload = c.req.valid("json");
 
+      // Permissive start: allows re-starting even if object exists
+      // to handle cases where it was created but not scanned/connected.
       const isExist = whatsapp.getSession(payload.session);
-      if (isExist) {
-        throw new HTTPException(400, {
-          message: "Session already exist",
-        });
+      if (isExist && isExist.user) {
+         return c.json({ data: { message: "Connected" } });
       }
 
       const qr = await new Promise<string | null>(async (r) => {
@@ -65,10 +65,8 @@ export const createSessionController = () => {
       const payload = c.req.valid("query");
 
       const isExist = whatsapp.getSession(payload.session);
-      if (isExist) {
-        throw new HTTPException(400, {
-          message: "Session already exist",
-        });
+      if (isExist && isExist.user) {
+         return c.json({ data: { message: "Connected" } });
       }
 
       const qr = await new Promise<string | null>(async (r) => {

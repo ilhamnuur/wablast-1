@@ -11,6 +11,7 @@ import {
   getFileIcon,
 } from "../../utils/helpers";
 import { uploadWithWorkingServices } from "../../services/upload";
+import SessionSelector from "../Common/SessionSelector";
 
 const RegularBlast = () => {
   const {
@@ -597,6 +598,7 @@ const RegularBlast = () => {
 
       <div className="main-card p-6 md:p-8 fade-in">
         <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+          <SessionSelector />
           {/* Contact Type Selection */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">

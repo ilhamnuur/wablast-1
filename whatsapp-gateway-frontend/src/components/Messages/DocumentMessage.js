@@ -8,8 +8,10 @@ import {
   validateFileSize,
   formatFileSize,
   getFileIcon,
+  formatPhoneNumber,
 } from "../../utils/helpers";
 import { uploadWithWorkingServices } from "../../services/upload";
+import SessionSelector from "../Common/SessionSelector";
 
 const DocumentMessage = () => {
   const { sessionName, contacts, uploadService, addDebugInfo } = useApp();
@@ -92,6 +94,7 @@ const DocumentMessage = () => {
     }
 
     setLoading(true);
+    const targetPhone = formatPhoneNumber(phoneNumber);
 
     // Process template variables if contact is selected
     let processedCaption = caption;
@@ -129,7 +132,7 @@ const DocumentMessage = () => {
       // Send document message
       const payload = {
         session: sessionName,
-        to: phoneNumber,
+        to: targetPhone,
         text: processedCaption || "",
         is_group: false,
         document_url: documentUrl,
@@ -195,6 +198,7 @@ const DocumentMessage = () => {
 
       <div className="main-card p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          <SessionSelector />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label

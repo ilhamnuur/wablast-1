@@ -1,11 +1,14 @@
 import axios from "axios";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
+const BASE_URL = process.env.REACT_APP_API_URL || "http://10.10.10.195:5001";
 
-// Create axios instance with enhanced timeout
+// Create axios instance with enhanced timeout and authentication
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000, // 30 seconds
+  headers: {
+    'key': process.env.REACT_APP_API_KEY || "your-secret-key"
+  }
 });
 
 // FIXED: Simplified response interceptor that doesn't interfere with normal operations

@@ -7,13 +7,14 @@ import {
   getTemplatePreview,
 } from "../../utils/template";
 import {
-  checkSessionBeforeSend,
   validateFileSize,
   formatFileSize,
   getFileIcon,
+  formatPhoneNumber,
 } from "../../utils/helpers";
 import { uploadWithWorkingServices } from "../../services/upload";
 import * as XLSX from "xlsx";
+import SessionSelector from "../Common/SessionSelector";
 
 const CustomBlast = () => {
   const {
@@ -226,8 +227,9 @@ const CustomBlast = () => {
 
     if (phoneColumnIndex !== -1) {
       rows.forEach((row) => {
-        const phoneNumber = row[phoneColumnIndex]?.toString().trim();
-        if (phoneNumber) {
+        const rawPhone = row[phoneColumnIndex]?.toString().trim();
+        if (rawPhone) {
+          const phoneNumber = formatPhoneNumber(rawPhone);
           const rowData = {};
           headers.forEach((header, index) => {
             const cleanHeader = header.toString().trim();
@@ -1295,6 +1297,7 @@ const CustomBlast = () => {
       {Object.keys(customBlastPhoneMapping).length > 0 && (
         <div className="main-card p-6 md:p-8 fade-in">
           <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
+            <SessionSelector />
             {/* Message Type Selection */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">

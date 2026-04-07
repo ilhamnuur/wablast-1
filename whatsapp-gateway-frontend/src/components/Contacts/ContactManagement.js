@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useApp } from "../../context/AppContext";
 import { useNotification } from "../../context/NotificationContext";
 import { contactAPI } from "../../services/api";
-import { generateId, formatFileSize } from "../../utils/helpers";
+import { generateId, formatFileSize, formatPhoneNumber } from "../../utils/helpers";
 import * as XLSX from "xlsx";
 
 const ContactManagement = () => {
@@ -395,17 +395,8 @@ const ContactManagement = () => {
     }
 
     // FIXED: Phone number validation and formatting
-    let cleanPhone = contactForm.phone
-      .replace(/[\s\-\(\)]/g, "")
-      .replace(/[^\d]/g, "");
+    const cleanPhone = formatPhoneNumber(contactForm.phone);
 
-    if (cleanPhone.startsWith("0")) {
-      cleanPhone = "62" + cleanPhone.substring(1);
-    } else if (cleanPhone.startsWith("+62")) {
-      cleanPhone = cleanPhone.substring(1);
-    } else if (!cleanPhone.startsWith("62")) {
-      cleanPhone = "62" + cleanPhone;
-    }
 
     if (!/^62\d{8,}$/.test(cleanPhone)) {
       showStatus(
@@ -696,17 +687,8 @@ const ContactManagement = () => {
           }
 
           // Clean and validate phone number
-          let cleanPhone = phone
-            .replace(/[\s\-\(\)]/g, "")
-            .replace(/[^\d]/g, "");
+          const cleanPhone = formatPhoneNumber(phone);
 
-          if (cleanPhone.startsWith("0")) {
-            cleanPhone = "62" + cleanPhone.substring(1);
-          } else if (cleanPhone.startsWith("+62")) {
-            cleanPhone = cleanPhone.substring(1);
-          } else if (!cleanPhone.startsWith("62")) {
-            cleanPhone = "62" + cleanPhone;
-          }
 
           if (!/^62\d{8,}$/.test(cleanPhone)) {
             errors.push(

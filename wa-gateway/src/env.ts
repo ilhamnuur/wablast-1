@@ -11,14 +11,14 @@ export const env = z
       .transform((e) => Number(e)),
     WEBHOOK_BASE_URL: z.string().optional(),
     // Database config
-    DB_HOST: z.string().default("host"),
+    DB_HOST: z.string().default("10.10.10.195"),
     DB_PORT: z
       .string()
-      .default("port")
+      .default("5432")
       .transform((e) => Number(e)),
-    DB_NAME: z.string().default("dbname"),
-    DB_USER: z.string().default("user"),
-    DB_PASSWORD: z.string().default("password"),
+    DB_NAME: z.string().default("whatsapp"),
+    DB_USER: z.string().default("casaos"),
+    DB_PASSWORD: z.string().default("casaos"),
   })
   .parse(process.env);
 

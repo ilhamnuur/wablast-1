@@ -59,9 +59,9 @@ const Sidebar = () => {
       className={`sidebar ${sidebarOpen ? "" : "sidebar-collapsed"}`}
     >
       {/* Sidebar Header */}
-      <div className="sidebar-header">
+      <div className="sidebar-header border-b border-gray-100">
         <div className="flex items-center space-x-3">
-          <div className="bg-white bg-opacity-20 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
+          <div className="bg-indigo-50 text-indigo-600 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm">
             <svg
               className="w-7 h-7"
               fill="none"
@@ -77,8 +77,8 @@ const Sidebar = () => {
             </svg>
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">WA Gateway</h1>
-            <p className="text-sm text-white opacity-80">
+            <h1 className="text-lg font-bold text-gray-900">WA Gateway</h1>
+            <p className="text-sm text-gray-500">
               {currentUser.username}
             </p>
           </div>

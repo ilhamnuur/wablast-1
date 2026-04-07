@@ -53,7 +53,7 @@ const RetryBlast = () => {
       const failedNumbers = [...blastResults.failedNumbers];
       let retrySuccess = 0;
       let retryFailed = 0;
-      const baseUrl = process.env.REACT_APP_API_URL || "http://localhost:5001";
+      const baseUrl = process.env.REACT_APP_API_URL || "http://10.10.10.195:5001";
 
       console.log(
         `🔄 RETRY BLAST: Starting retry for ${failedNumbers.length} failed numbers`

@@ -3,7 +3,8 @@ import { useApp } from "../../context/AppContext";
 import { useNotification } from "../../context/NotificationContext";
 import { messageAPI } from "../../services/api";
 import { processTemplate } from "../../utils/template";
-import { checkSessionBeforeSend } from "../../utils/helpers";
+import { checkSessionBeforeSend, formatPhoneNumber } from "../../utils/helpers";
+import SessionSelector from "../Common/SessionSelector";
 
 const TextMessage = () => {
   const { sessionName, contacts, addDebugInfo } = useApp();
@@ -38,7 +39,8 @@ const TextMessage = () => {
     }
 
     setLoading(true);
-
+    const targetPhone = formatPhoneNumber(phoneNumber);
+    
     // Process template variables if contact is selected
     let processedMessage = messageText;
     if (selectedContact) {
@@ -62,7 +64,7 @@ const TextMessage = () => {
 
       const payload = {
         session: sessionName,
-        to: phoneNumber,
+        to: targetPhone,
         text: processedMessage,
         is_group: false,
       };
@@ -104,6 +106,7 @@ const TextMessage = () => {
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <SessionSelector />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label

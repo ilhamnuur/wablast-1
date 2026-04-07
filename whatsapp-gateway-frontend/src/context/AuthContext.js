@@ -29,14 +29,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuthStatus = () => {
-    const remembered = localStorage.getItem("whatsapp_gateway_remember");
     const lastUser = localStorage.getItem("whatsapp_gateway_user");
 
-    if (remembered === "true" && lastUser) {
-      const userData = JSON.parse(lastUser);
-      if (userData.username === userCredentials.username) {
-        performLogin(userData.username, false);
-        return true;
+    if (lastUser) {
+      try {
+        const userData = JSON.parse(lastUser);
+        if (userData.username === userCredentials.username) {
+          // Pass false to not overwrite the 'remember' flag during mount
+          performLogin(userData.username, localStorage.getItem("whatsapp_gateway_remember") === "true");
+          return true;
+        }
+      } catch (e) {
+        console.error("Auth status parse error:", e);
       }
     }
     return false;
@@ -50,10 +54,13 @@ export const AuthProvider = ({ children }) => {
     };
     setCurrentUser(userData);
 
-    // Save to localStorage if remember me is checked
+    // Save to localStorage so it persists across refreshes
+    localStorage.setItem("whatsapp_gateway_user", JSON.stringify(userData));
+    
     if (saveSession) {
       localStorage.setItem("whatsapp_gateway_remember", "true");
-      localStorage.setItem("whatsapp_gateway_user", JSON.stringify(userData));
+    } else {
+      localStorage.setItem("whatsapp_gateway_remember", "false");
     }
   };
 
