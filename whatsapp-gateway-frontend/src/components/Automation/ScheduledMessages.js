@@ -85,6 +85,11 @@ const ScheduledMessages = () => {
     }
   };
 
+  const getDayName = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', { weekday: 'long' });
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="main-card">
@@ -166,6 +171,9 @@ const ScheduledMessages = () => {
                 onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
                 required
               />
+              {formData.scheduled_at && (
+                <p className="text-xs text-indigo-500 font-bold mt-1">Hari: {getDayName(formData.scheduled_at)}</p>
+              )}
             </div>
           </div>
 
@@ -216,7 +224,7 @@ const ScheduledMessages = () => {
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Penerima</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Pesan</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Waktu</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Waktu & Hari</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Aksi</th>
               </tr>
@@ -234,8 +242,9 @@ const ScheduledMessages = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-600 truncate max-w-[200px]">{item.message}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
-                      {new Date(item.scheduled_at).toLocaleString()}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-gray-900">{getDayName(item.scheduled_at)}</div>
+                      <div className="text-xs text-gray-500">{new Date(item.scheduled_at).toLocaleString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold

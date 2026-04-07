@@ -274,13 +274,45 @@ whastapp.onMessageReceived(async (msg) => {
 
     if (result.rows.length > 0) {
       const reply = result.rows[0];
-      console.log(`🤖 Auto-replying to ${from} with keyword "${reply.keyword}"`);
       
-      await whastapp.sendTextMessage({
-        sessionId: sessionId,
-        to: from!,
-        text: reply.response,
-      });
+      // Check schedule
+      let shouldReply = true;
+      const now = new Date();
+      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const currentTimeStr = now.toTimeString().split(" ")[0] || "00:00:00"; // Fallback to "00:00:00"
+
+      if (reply.schedule_type === "working_hours") {
+        // Monday (1) to Friday (5), 07:30 to 16:00
+        const isWorkDay = currentDay >= 1 && currentDay <= 5;
+        const isTalkTime = currentTimeStr >= "07:30:00" && currentTimeStr <= "16:00:00";
+        shouldReply = isWorkDay && isTalkTime;
+      } else if (reply.schedule_type === "outside_working_hours") {
+        // Weekend or Outside 07:30 - 16:00
+        const isWeekend = currentDay === 0 || currentDay === 6;
+        const isNotWorkTime = currentTimeStr < "07:30:00" || currentTimeStr > "16:00:00";
+        shouldReply = isWeekend || isNotWorkTime;
+      } else if (reply.schedule_type === "custom") {
+        // Custom check for days and hours if provided
+        if (reply.custom_days) {
+          const daysMap: Record<string, number> = {
+            sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
+          };
+          const allowedDays = reply.custom_days.split(",").map((d: string) => daysMap[d.trim().toLowerCase()]);
+          shouldReply = allowedDays.includes(currentDay);
+        }
+        if (shouldReply && reply.start_time && reply.end_time) {
+          shouldReply = currentTimeStr >= reply.start_time && currentTimeStr <= reply.end_time;
+        }
+      }
+
+      if (shouldReply) {
+        console.log(`🤖 Auto-replying to ${from} with keyword "${reply.keyword}"`);
+        await whastapp.sendTextMessage({
+          sessionId: sessionId,
+          to: from!,
+          text: reply.response,
+        });
+      }
     }
   } catch (error) {
     console.error("❌ Auto-reply error:", error);

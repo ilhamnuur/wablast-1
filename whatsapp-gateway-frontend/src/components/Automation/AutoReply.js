@@ -12,8 +12,22 @@ const AutoReply = () => {
     keyword: "",
     response: "",
     persona: "",
+    schedule_type: "all",
+    custom_days: "",
+    start_time: "07:30",
+    end_time: "16:00",
   });
   const [loading, setLoading] = useState(false);
+
+  const daysOptions = [
+    { value: "monday", label: "Senin" },
+    { value: "tuesday", label: "Selasa" },
+    { value: "wednesday", label: "Rabu" },
+    { value: "thursday", label: "Kamis" },
+    { value: "friday", label: "Jumat" },
+    { value: "saturday", label: "Sabtu" },
+    { value: "sunday", label: "Minggu" },
+  ];
 
   useEffect(() => {
     fetchAutoreply();
@@ -44,6 +58,10 @@ const AutoReply = () => {
           keyword: "",
           response: "",
           persona: "",
+          schedule_type: "all",
+          custom_days: "",
+          start_time: "07:30",
+          end_time: "16:00",
         });
         fetchAutoreply();
       }
@@ -63,6 +81,17 @@ const AutoReply = () => {
     } catch (err) {
       showStatus("❌ Gagal menghapus auto-reply", "error");
     }
+  };
+
+  const handleDayToggle = (day) => {
+    const currentDays = formData.custom_days ? formData.custom_days.split(",") : [];
+    let newDays;
+    if (currentDays.includes(day)) {
+      newDays = currentDays.filter(d => d !== day);
+    } else {
+      newDays = [...currentDays, day];
+    }
+    setFormData({ ...formData, custom_days: newDays.join(",") });
   };
 
   return (
@@ -122,19 +151,80 @@ const AutoReply = () => {
             ></textarea>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Karakter / Persona (Opsional)
-            </label>
-            <input
-              type="text"
-              className="form-input w-full"
-              placeholder="Contoh: 'Customer Service yang ramah', 'Asisten Pintar'"
-              value={formData.persona}
-              onChange={(e) => setFormData({ ...formData, persona: e.target.value })}
-            />
-            <p className="text-sm text-gray-400 mt-2">💡 Tips: Menentukan karakter agar jawaban terasa lebih luwes.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Jadwal Aktif
+              </label>
+              <select
+                className="form-input w-full"
+                value={formData.schedule_type}
+                onChange={(e) => setFormData({ ...formData, schedule_type: e.target.value })}
+              >
+                <option value="all">Setiap Saat (24 Jam)</option>
+                <option value="working_hours">Jam Kerja (Senin-Jumat, 07:30-16:00)</option>
+                <option value="outside_working_hours">Diluar Jam Kerja</option>
+                <option value="custom">Kustom Hari & Jam</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Persona (Opsional)
+              </label>
+              <input
+                type="text"
+                className="form-input w-full"
+                placeholder="Contoh: 'Asisten Ramah'"
+                value={formData.persona}
+                onChange={(e) => setFormData({ ...formData, persona: e.target.value })}
+              />
+            </div>
           </div>
+
+          {formData.schedule_type === "custom" && (
+            <div className="space-y-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 animate-slide-up">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-600">Pilih Hari</label>
+                <div className="flex flex-wrap gap-2">
+                  {daysOptions.map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => handleDayToggle(day.value)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        formData.custom_days?.includes(day.value)
+                          ? "bg-indigo-600 text-white shadow-md shadow-indigo-100"
+                          : "bg-white text-gray-500 border border-gray-100 hover:border-indigo-300"
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-600">Jam Mulai</label>
+                  <input
+                    type="time"
+                    className="form-input w-full"
+                    value={formData.start_time}
+                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-600">Jam Selesai</label>
+                  <input
+                    type="time"
+                    className="form-input w-full"
+                    value={formData.end_time}
+                    onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -154,10 +244,9 @@ const AutoReply = () => {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50/50">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Kata Kunci</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Keyword</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Tanggapan</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Persona</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Sesi</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Jadwal</th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
@@ -174,14 +263,19 @@ const AutoReply = () => {
                       <div className="text-sm text-gray-600 italic">
                         "{item.response}"
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-500 font-medium">
-                        {item.persona || <span className="text-gray-300">Default</span>}
+                      <div className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">
+                        Sesi: {item.session} | Persona: {item.persona || 'Default'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.session}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold uppercase
+                        ${item.schedule_type === 'working_hours' ? 'bg-green-50 text-green-700' : 
+                          item.schedule_type === 'outside_working_hours' ? 'bg-orange-50 text-orange-700' : 
+                          item.schedule_type === 'custom' ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600'}`}>
+                        {item.schedule_type === 'working_hours' ? 'Jam Kerja' : 
+                         item.schedule_type === 'outside_working_hours' ? 'Luar Jam Kerja' : 
+                         item.schedule_type === 'custom' ? 'Kustom' : '24 Jam'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
@@ -195,7 +289,7 @@ const AutoReply = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center text-gray-400 font-medium">
+                  <td colSpan="4" className="px-6 py-12 text-center text-gray-400 font-medium">
                     Belum ada auto reply terdaftar
                   </td>
                 </tr>

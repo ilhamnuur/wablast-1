@@ -30,11 +30,26 @@ export async function runMigrations() {
         response TEXT NOT NULL,
         persona TEXT,
         is_active BOOLEAN DEFAULT TRUE,
+        schedule_type TEXT DEFAULT 'all', -- 'all', 'working_hours', 'outside_working_hours', 'custom'
+        custom_days TEXT, -- 'monday,tuesday,...'
+        start_time TIME,
+        end_time TIME,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
     console.log("✅ Table 'auto_replies' checked/created");
+
+    // Ensure new columns exist in auto_replies
+    try {
+      await query("ALTER TABLE auto_replies ADD COLUMN IF NOT EXISTS schedule_type TEXT DEFAULT 'all'");
+      await query("ALTER TABLE auto_replies ADD COLUMN IF NOT EXISTS custom_days TEXT");
+      await query("ALTER TABLE auto_replies ADD COLUMN IF NOT EXISTS start_time TIME");
+      await query("ALTER TABLE auto_replies ADD COLUMN IF NOT EXISTS end_time TIME");
+      console.log("✅ Table 'auto_replies' columns updated");
+    } catch (e) {
+      console.log("⚠️ Some columns might already exist in 'auto_replies'");
+    }
 
   } catch (error) {
     console.error("❌ Migration failed:", error);

@@ -9,6 +9,10 @@ const autoreplySchema = z.object({
   response: z.string().min(1, "Response is required"),
   persona: z.string().optional(),
   is_active: z.boolean().default(true),
+  schedule_type: z.enum(["all", "working_hours", "outside_working_hours", "custom"]).default("all"),
+  custom_days: z.string().optional(),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
 });
 
 export const createAutoreplyController = () => {
@@ -29,12 +33,12 @@ export const createAutoreplyController = () => {
   // Create new auto reply
   app.post("/", zValidator("json", autoreplySchema), async (c) => {
     try {
-      const { session, keyword, response, persona, is_active } =
+      const { session, keyword, response, persona, is_active, schedule_type, custom_days, start_time, end_time } =
         c.req.valid("json");
 
       const result = await query(
-        "INSERT INTO auto_replies (session, keyword, response, persona, is_active) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        [session, keyword, response, persona || null, is_active]
+        "INSERT INTO auto_replies (session, keyword, response, persona, is_active, schedule_type, custom_days, start_time, end_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
+        [session, keyword, response, persona || null, is_active, schedule_type, custom_days || null, start_time || null, end_time || null]
       );
 
       return c.json({
@@ -51,12 +55,12 @@ export const createAutoreplyController = () => {
   app.put("/:id", zValidator("json", autoreplySchema), async (c) => {
     try {
       const id = c.req.param("id");
-      const { session, keyword, response, persona, is_active } =
+      const { session, keyword, response, persona, is_active, schedule_type, custom_days, start_time, end_time } =
         c.req.valid("json");
 
       const result = await query(
-        "UPDATE auto_replies SET session = $1, keyword = $2, response = $3, persona = $4, is_active = $5, updated_at = NOW() WHERE id = $6 RETURNING *",
-        [session, keyword, response, persona || null, is_active, id]
+        "UPDATE auto_replies SET session = $1, keyword = $2, response = $3, persona = $4, is_active = $5, schedule_type = $6, custom_days = $7, start_time = $8, end_time = $9, updated_at = NOW() WHERE id = $10 RETURNING *",
+        [session, keyword, response, persona || null, is_active, schedule_type, custom_days || null, start_time || null, end_time || null, id]
       );
 
       return c.json({
