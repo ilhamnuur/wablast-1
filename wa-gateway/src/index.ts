@@ -14,10 +14,22 @@ import { createWebhookMessage } from "./webhooks/message";
 import { createWebhookSession } from "./webhooks/session";
 import { createProfileController } from "./controllers/profile";
 import { createContactController } from "./controllers/contact";
+import { createScheduledController } from "./controllers/scheduled";
+import { createAutoreplyController } from "./controllers/autoreply";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { getPool } from "./db/connection";
+import { getPool, query } from "./db/connection";
+import { runMigrations } from "./db/migrations";
 
 const app = new Hono();
+
+app.get("/", (c) => {
+  return c.json({
+    message: "WhatsApp Gateway API is running",
+    status: "online",
+    version: "1.0.0",
+    docs: "/health"
+  });
+});
 
 app.use(
   logger((...params) => {
@@ -44,6 +56,7 @@ async function initializeDatabase() {
     const pool = getPool();
     const result = await pool.query("SELECT NOW()");
     console.log("✅ Database initialized successfully at:", result.rows[0].now);
+    await runMigrations();
   } catch (error) {
     console.error(
       "❌ Database initialization failed:",
@@ -105,6 +118,14 @@ app.route("/profile", createProfileController());
  * contact routes
  */
 app.route("/contact", createContactController());
+/**
+ * scheduled routes
+ */
+app.route("/scheduled", createScheduledController());
+/**
+ * autoreply routes
+ */
+app.route("/autoreply", createAutoreplyController());
 
 const port = env.PORT;
 
@@ -161,5 +182,109 @@ if (env.WEBHOOK_BASE_URL) {
   });
 }
 // End Implement Webhook
+
+// Scheduler Logic
+async function processScheduledMessages() {
+  try {
+    const now = new Date().toISOString();
+    const result = await query(
+      "SELECT * FROM scheduled_messages WHERE status = 'pending' AND scheduled_at <= $1",
+      [now]
+    );
+
+    for (const msg of result.rows) {
+      console.log(`⏰ Sending scheduled message to ${msg.recipient}`);
+      try {
+        if (msg.type === "blast") {
+          // Handle blast (get contacts in group and send)
+          const contacts = await query(
+            "SELECT c.phone FROM contacts c JOIN contact_groups cg ON c.id = cg.contact_id WHERE cg.group_name = $1",
+            [msg.recipient]
+          );
+          for (const contact of contacts.rows) {
+            if (msg.media_url) {
+              await whastapp.sendImage({
+                sessionId: msg.session,
+                to: contact.phone,
+                text: msg.message,
+                media: msg.media_url,
+              });
+            } else {
+              await whastapp.sendTextMessage({
+                sessionId: msg.session,
+                to: contact.phone,
+                text: msg.message,
+              });
+            }
+          }
+        } else {
+          // Individual
+          if (msg.media_url) {
+            await whastapp.sendImage({
+              sessionId: msg.session,
+              to: msg.recipient,
+              text: msg.message,
+              media: msg.media_url,
+            });
+          } else {
+            await whastapp.sendTextMessage({
+              sessionId: msg.session,
+              to: msg.recipient,
+              text: msg.message,
+            });
+          }
+        }
+
+        await query(
+          "UPDATE scheduled_messages SET status = 'sent', updated_at = NOW() WHERE id = $1",
+          [msg.id]
+        );
+        console.log(`✅ Scheduled message ${msg.id} sent`);
+      } catch (err) {
+        console.error(`❌ Failed to send scheduled message ${msg.id}:`, err);
+        await query(
+          "UPDATE scheduled_messages SET status = 'failed', updated_at = NOW() WHERE id = $1",
+          [msg.id]
+        );
+      }
+    }
+  } catch (error) {
+    console.error("❌ Scheduler error:", error);
+  }
+}
+
+// Start scheduler (every 1 minute)
+setInterval(processScheduledMessages, 60000);
+
+// Auto-Reply Logic
+whastapp.onMessageReceived(async (msg) => {
+  if (msg.key.fromMe) return;
+
+  const sessionId = msg.sessionId;
+  const from = msg.key.remoteJid?.split("@")[0];
+  const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+
+  if (!messageText) return;
+
+  try {
+    const result = await query(
+      "SELECT * FROM auto_replies WHERE session = $1 AND is_active = true AND $2 ILIKE '%' || keyword || '%'",
+      [sessionId, messageText]
+    );
+
+    if (result.rows.length > 0) {
+      const reply = result.rows[0];
+      console.log(`🤖 Auto-replying to ${from} with keyword "${reply.keyword}"`);
+      
+      await whastapp.sendTextMessage({
+        sessionId: sessionId,
+        to: from!,
+        text: reply.response,
+      });
+    }
+  } catch (error) {
+    console.error("❌ Auto-reply error:", error);
+  }
+});
 
 whastapp.loadSessionsFromStorage();

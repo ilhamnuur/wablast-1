@@ -8,6 +8,8 @@ import DocumentMessage from "../Messages/DocumentMessage";
 import RegularBlast from "../Blast/RegularBlast";
 import CustomBlast from "../Blast/CustomBlast";
 import ContactManagement from "../Contacts/ContactManagement";
+import ScheduledMessages from "../Automation/ScheduledMessages";
+import AutoReply from "../Automation/AutoReply";
 import DebugLog from "../Debug/DebugLog";
 import BlastResults from "../Blast/BlastResults";
 import StatusMessage from "../Common/StatusMessage";
@@ -30,6 +32,10 @@ const MainApp = () => {
         return <RegularBlast />;
       case "blast-custom":
         return <CustomBlast />;
+      case "scheduled":
+        return <ScheduledMessages />;
+      case "autoreply":
+        return <AutoReply />;
       case "contacts":
         return <ContactManagement />;
       case "debug":

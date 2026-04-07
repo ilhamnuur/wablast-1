@@ -209,6 +209,20 @@ export const contactAPI = {
   getExcelTemplate: () => api.get("/contact/excel-template"),
 };
 
+// Automation APIs
+export const automationAPI = {
+  // Scheduled Messages
+  getScheduled: () => api.get("/scheduled"),
+  addScheduled: (data) => api.post("/scheduled", data),
+  deleteScheduled: (id) => api.delete(`/scheduled/${id}`),
+
+  // Auto Replies
+  getAutoreply: () => api.get("/autoreply"),
+  addAutoreply: (data) => api.post("/autoreply", data),
+  updateAutoreply: (id, data) => api.put(`/autoreply/${id}`, data),
+  deleteAutoreply: (id) => api.delete(`/autoreply/${id}`),
+};
+
 // Upload service endpoints
 export const uploadServices = {
   tmpfiles: {

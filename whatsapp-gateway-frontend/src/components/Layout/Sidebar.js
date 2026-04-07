@@ -31,6 +31,13 @@ const Sidebar = () => {
       items: [{ id: "contacts", icon: "📱", label: "Kontak & Group" }],
     },
     {
+      section: "Automation",
+      items: [
+        { id: "scheduled", icon: "⏰", label: "Pesan Terjadwal" },
+        { id: "autoreply", icon: "🤖", label: "Auto Reply" },
+      ],
+    },
+    {
       section: "Tools",
       items: [{ id: "debug", icon: "🔧", label: "Debug Log" }],
     },
