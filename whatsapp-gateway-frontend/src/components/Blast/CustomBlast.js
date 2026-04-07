@@ -11,6 +11,7 @@ import {
   formatFileSize,
   getFileIcon,
   formatPhoneNumber,
+  checkSessionBeforeSend,
 } from "../../utils/helpers";
 import { uploadWithWorkingServices } from "../../services/upload";
 import * as XLSX from "xlsx";

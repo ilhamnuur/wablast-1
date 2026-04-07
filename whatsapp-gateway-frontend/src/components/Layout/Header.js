@@ -142,20 +142,21 @@ const Header = () => {
           </button>
 
           <div className={`user-dropdown ${userDropdownOpen ? "show" : ""}`}>
-            <div className="dropdown-item border-b border-gray-200 dark:border-gray-600">
-              <div className="font-semibold text-gray-900 dark:text-white">
+            <div className="dropdown-item border-b border-ultra-light mb-2">
+              <div className="font-bold text-gray-900">
                 {currentUser.username}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-xs text-gray-500">
                 Administrator
               </div>
             </div>
+            
             <div
-              className="dropdown-item text-red-600 dark:text-red-400"
+              className="dropdown-item-action text-red-600 font-semibold"
               onClick={handleLogout}
             >
               <svg
-                className="w-4 h-4 inline mr-3"
+                className="w-4 h-4 mr-3"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

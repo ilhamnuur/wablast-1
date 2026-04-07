@@ -16,7 +16,7 @@ function AppContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white transition-all duration-300">
+    <div className="min-h-screen bg-base transition-all duration-300">
       {isAuthenticated ? <MainApp /> : <LoginScreen />}
     </div>
   );
