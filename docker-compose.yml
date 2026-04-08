@@ -30,7 +30,7 @@ services:
       args:
         # Define API URL for frontend to communicate with backend
         # Edit this if deploying to a remote server instead of localhost
-        - REACT_APP_API_URL=https://wapi.bpstuban.my.id
+        - REACT_APP_API_URL=http://10.10.10.195:5001
     container_name: wablast_ui
     restart: unless-stopped
     ports:

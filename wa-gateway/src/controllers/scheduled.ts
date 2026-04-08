@@ -10,6 +10,7 @@ const scheduledSchema = z.object({
   media_url: z.string().optional(),
   scheduled_at: z.string().min(1, "Scheduled time is required"),
   type: z.enum(["individual", "blast"]).default("individual"),
+  schedule_type: z.enum(["every_day", "working_days", "holidays"]).default("every_day"),
 });
 
 export const createScheduledController = () => {

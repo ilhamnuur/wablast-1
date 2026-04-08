@@ -28,7 +28,7 @@ export const createMessageController = () => {
         });
       }
 
-      await whatsapp.sendTyping({
+      whatsapp.sendTyping({
         sessionId: payload.session,
         to: payload.to,
         duration: Math.min(5000, payload.text.length * 100),
@@ -97,7 +97,7 @@ export const createMessageController = () => {
         });
       }
 
-      await whatsapp.sendTyping({
+      whatsapp.sendTyping({
         sessionId: payload.session,
         to: payload.to,
         duration: Math.min(5000, payload.text.length * 100),
@@ -138,7 +138,7 @@ export const createMessageController = () => {
         });
       }
 
-      await whatsapp.sendTyping({
+      whatsapp.sendTyping({
         sessionId: payload.session,
         to: payload.to,
         duration: Math.min(5000, payload.text.length * 100),

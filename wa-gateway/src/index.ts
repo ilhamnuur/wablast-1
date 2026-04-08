@@ -258,9 +258,11 @@ setInterval(processScheduledMessages, 60000);
 
 // Auto-Reply Logic
 whastapp.onMessageReceived(async (msg) => {
+  console.log('📩 Received message:', msg);
   if (msg.key.fromMe) return;
 
   const sessionId = msg.sessionId;
+  console.log('🔑 Session ID:', sessionId);
   const from = msg.key.remoteJid?.split("@")[0];
   const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
 
@@ -271,33 +273,28 @@ whastapp.onMessageReceived(async (msg) => {
       "SELECT * FROM auto_replies WHERE session = $1 AND is_active = true AND $2 ILIKE '%' || keyword || '%'",
       [sessionId, messageText]
     );
-
+    console.log('🔎 Auto-reply query result count:', result.rowCount);
     if (result.rows.length > 0) {
       const reply = result.rows[0];
-      
-      // Check schedule
+      // Ensure schedule_type has a fallback
+      const scheduleType = reply.schedule_type || 'all';
       let shouldReply = true;
       const now = new Date();
       const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-      const currentTimeStr = now.toTimeString().split(" ")[0] || "00:00:00"; // Fallback to "00:00:00"
+      const currentTimeStr = now.toTimeString().split(" ")[0] || "00:00:00";
 
-      if (reply.schedule_type === "working_hours") {
-        // Monday (1) to Friday (5), 07:30 to 16:00
+      if (scheduleType === "working_hours") {
         const isWorkDay = currentDay >= 1 && currentDay <= 5;
         const isTalkTime = currentTimeStr >= "07:30:00" && currentTimeStr <= "16:00:00";
         shouldReply = isWorkDay && isTalkTime;
-      } else if (reply.schedule_type === "outside_working_hours") {
-        // Weekend or Outside 07:30 - 16:00
+      } else if (scheduleType === "outside_working_hours") {
         const isWeekend = currentDay === 0 || currentDay === 6;
         const isNotWorkTime = currentTimeStr < "07:30:00" || currentTimeStr > "16:00:00";
         shouldReply = isWeekend || isNotWorkTime;
-      } else if (reply.schedule_type === "custom") {
-        // Custom check for days and hours if provided
+      } else if (scheduleType === "custom") {
         if (reply.custom_days) {
-          const daysMap: Record<string, number> = {
-            sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6
-          };
-          const allowedDays = reply.custom_days.split(",").map((d: string) => daysMap[d.trim().toLowerCase()]);
+          const daysMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+          const allowedDays = reply.custom_days.split(",").map((d) => daysMap[d.trim().toLowerCase()]);
           shouldReply = allowedDays.includes(currentDay);
         }
         if (shouldReply && reply.start_time && reply.end_time) {
@@ -312,6 +309,8 @@ whastapp.onMessageReceived(async (msg) => {
           to: from!,
           text: reply.response,
         });
+      } else {
+        console.log('⏸️ Auto-reply suppressed due to schedule constraints');
       }
     }
   } catch (error) {

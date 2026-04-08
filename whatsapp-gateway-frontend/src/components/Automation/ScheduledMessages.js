@@ -6,8 +6,28 @@ import { automationAPI, contactAPI } from "../../services/api";
 const ScheduledMessages = () => {
   const { availableSessions, addDebugInfo } = useApp();
   const { showStatus } = useNotification();
+  const [contacts, setContacts] = useState([]);
   const [scheduledList, setScheduledList] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchContacts();
+    fetchScheduled();
+    fetchGroups();
+  }, []);
+
+  const fetchContacts = async () => {
+    try {
+      const res = await contactAPI.getContacts();
+      if (res.data.success) {
+        setContacts(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch contacts', err);
+    }
+  };
+
   const [formData, setFormData] = useState({
     session: "",
     recipientType: "individual",
@@ -15,8 +35,8 @@ const ScheduledMessages = () => {
     message: "",
     media_url: "",
     scheduled_at: "",
+    schedule_type: "every_day",
   });
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchScheduled();
@@ -52,6 +72,7 @@ const ScheduledMessages = () => {
     try {
       const payload = {
         ...formData,
+        scheduled_at: formData.scheduled_at ? new Date(formData.scheduled_at).toISOString() : "",
         type: formData.recipientType,
       };
       const res = await automationAPI.addScheduled(payload);
@@ -64,6 +85,7 @@ const ScheduledMessages = () => {
           message: "",
           media_url: "",
           scheduled_at: "",
+          schedule_type: "every_day",
         });
         fetchScheduled();
       }
@@ -137,14 +159,17 @@ const ScheduledMessages = () => {
                 Penerima
               </label>
               {formData.recipientType === "individual" ? (
-                <input
-                  type="text"
+                <select
                   className="form-input w-full"
-                  placeholder="628xxx"
                   value={formData.recipient}
                   onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
                   required
-                />
+                >
+                  <option value="">Pilih Kontak</option>
+                  {contacts.map((c) => (
+                    <option key={c.id} value={c.phone}>{c.name} ({c.phone})</option>
+                  ))}
+                </select>
               ) : (
                 <select
                   className="form-input w-full"
@@ -161,20 +186,33 @@ const ScheduledMessages = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Waktu Kirim
-              </label>
-              <input
-                type="datetime-local"
-                className="form-input w-full"
-                value={formData.scheduled_at}
-                onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                required
-              />
-              {formData.scheduled_at && (
-                <p className="text-xs text-indigo-500 font-bold mt-1">Hari: {getDayName(formData.scheduled_at)}</p>
-              )}
-            </div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Waktu Kirim
+                </label>
+                <input
+                  type="time"
+                  className="form-input w-full"
+                  value={formData.scheduled_at}
+                  onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                  required
+                />
+                {formData.scheduled_at && (
+                  <p className="text-xs text-indigo-500 font-bold mt-1">Hari: {getDayName(formData.scheduled_at)}</p>
+                )}
+                {/* Schedule Type */}
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mt-2">
+                  Tipe Jadwal
+                </label>
+                <select
+                  className="form-input w-full"
+                  value={formData.schedule_type}
+                  onChange={(e) => setFormData({ ...formData, schedule_type: e.target.value })}
+                >
+                  <option value="every_day">Setiap Hari</option>
+                  <option value="working_days">Hari Kerja (Senin‑Jumat)</option>
+                  <option value="holidays">Hari Libur</option>
+                </select>
+              </div>
           </div>
 
           <div className="space-y-2">

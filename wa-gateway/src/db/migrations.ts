@@ -12,13 +12,26 @@ export async function runMigrations() {
         recipient TEXT NOT NULL,
         message TEXT NOT NULL,
         media_url TEXT,
-        scheduled_at TIMESTAMP NOT NULL,
+        scheduled_at TIMESTAMPTZ NOT NULL,
         status TEXT DEFAULT 'pending',
         type TEXT DEFAULT 'individual',
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+    
+    // Ensure scheduled_at is TIMESTAMPTZ even if table already exists
+    try {
+      await query("ALTER TABLE scheduled_messages ALTER COLUMN scheduled_at TYPE TIMESTAMPTZ USING scheduled_at AT TIME ZONE 'UTC'");
+      await query("ALTER TABLE scheduled_messages ALTER COLUMN created_at TYPE TIMESTAMPTZ");
+      await query("ALTER TABLE scheduled_messages ALTER COLUMN updated_at TYPE TIMESTAMPTZ");
+      // Add schedule_type column if not exists
+      await query("ALTER TABLE scheduled_messages ADD COLUMN IF NOT EXISTS schedule_type TEXT DEFAULT 'all'");
+      console.log("✅ Table 'scheduled_messages' columns updated to TIMESTAMPTZ and schedule_type added");
+    } catch (e) {
+      console.log("⚠️ Failed to alter columns in 'scheduled_messages':", e);
+    }
+
     console.log("✅ Table 'scheduled_messages' checked/created");
 
     // Auto Replies Table
