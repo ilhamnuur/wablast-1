@@ -14,16 +14,16 @@ const Header = () => {
         subtitle: "Kelola sesi WhatsApp dan kirim pesan",
       },
       text: {
-        title: "Kirim Pesan Teks",
-        subtitle: "Kirim pesan teks ke nomor atau grup WhatsApp",
+        title: "Kirim Pesan",
+        subtitle: "Kirim teks, gambar, atau dokumen ke nomor atau grup WhatsApp",
       },
       image: {
-        title: "Kirim Gambar",
-        subtitle: "Kirim gambar dengan caption ke WhatsApp",
+        title: "Kirim Pesan",
+        subtitle: "Kirim teks, gambar, atau dokumen ke nomor atau grup WhatsApp",
       },
       document: {
-        title: "Kirim Dokumen",
-        subtitle: "Kirim dokumen file ke WhatsApp",
+        title: "Kirim Pesan",
+        subtitle: "Kirim teks, gambar, atau dokumen ke nomor atau grup WhatsApp",
       },
       blast: {
         title: "Blast Pesan Biasa",

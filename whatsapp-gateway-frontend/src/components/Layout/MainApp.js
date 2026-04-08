@@ -3,8 +3,6 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import Dashboard from "../Dashboard/Dashboard";
 import TextMessage from "../Messages/TextMessage";
-import ImageMessage from "../Messages/ImageMessage";
-import DocumentMessage from "../Messages/DocumentMessage";
 import RegularBlast from "../Blast/RegularBlast";
 import CustomBlast from "../Blast/CustomBlast";
 import ContactManagement from "../Contacts/ContactManagement";
@@ -23,11 +21,11 @@ const MainApp = () => {
       case "session":
         return <Dashboard />;
       case "text":
-        return <TextMessage />;
+        return <TextMessage initialMode="text" />;
       case "image":
-        return <ImageMessage />;
+        return <TextMessage initialMode="image" />;
       case "document":
-        return <DocumentMessage />;
+        return <TextMessage initialMode="document" />;
       case "blast":
         return <RegularBlast />;
       case "blast-custom":

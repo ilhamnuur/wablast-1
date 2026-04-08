@@ -14,9 +14,7 @@ const Sidebar = () => {
     {
       section: "Pesan",
       items: [
-        { id: "text", icon: "📝", label: "Kirim Teks" },
-        { id: "image", icon: "🖼️", label: "Kirim Gambar" },
-        { id: "document", icon: "📄", label: "Kirim Dokumen" },
+        { id: "text", icon: "📝", label: "Kirim Pesan" },
       ],
     },
     {
