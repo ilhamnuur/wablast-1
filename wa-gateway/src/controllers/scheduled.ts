@@ -72,10 +72,15 @@ export const createScheduledController = () => {
   app.put("/:id", zValidator("json", scheduledSchema), async (c) => {
     try {
       const id = c.req.param("id");
+      console.log(`📝 Received update request for ID: ${id}`);
+
       const { session, recipient, message, media_url, scheduled_at, type, schedule_type } =
         c.req.valid("json");
 
-      console.log(`📝 Updating scheduled message ${id} to schedule_type: ${schedule_type}`);
+      console.log(`📝 Updating scheduled message ${id} with data:`, {
+        session, recipient, message: message.substring(0, 50) + "...",
+        media_url, scheduled_at, type, schedule_type
+      });
 
       const result = await query(
         "UPDATE scheduled_messages SET session = $1, recipient = $2, message = $3, media_url = $4, scheduled_at = $5, type = $6, schedule_type = $7, updated_at = NOW() WHERE id = $8 RETURNING *",
@@ -83,10 +88,11 @@ export const createScheduledController = () => {
       );
 
       if (result.rows.length === 0) {
+        console.log(`❌ Scheduled message ${id} not found`);
         return c.json({ success: false, error: "Scheduled message not found" }, 404);
       }
 
-      console.log(`✅ Scheduled message ${id} updated with schedule_type: ${result.rows[0].schedule_type}`);
+      console.log(`✅ Scheduled message ${id} updated successfully with schedule_type: ${result.rows[0].schedule_type}`);
 
       return c.json({
         success: true,

@@ -214,7 +214,10 @@ export const automationAPI = {
   // Scheduled Messages
   getScheduled: () => api.get("/scheduled"),
   addScheduled: (data) => api.post("/scheduled", data),
-  updateScheduled: (id, data) => api.put(`/scheduled/${id}`, data),
+  updateScheduled: (id, data) => {
+    console.log(`🔄 API Call: PUT /scheduled/${id}`, data);
+    return api.put(`/scheduled/${id}`, data);
+  },
   deleteScheduled: (id) => api.delete(`/scheduled/${id}`),
 
   // Auto Replies

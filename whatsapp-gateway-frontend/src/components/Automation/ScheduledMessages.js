@@ -134,6 +134,28 @@ const ScheduledMessages = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Validate required fields
+      if (!formData.session) {
+        showStatus("❌ Sesi WhatsApp harus dipilih", "error");
+        setLoading(false);
+        return;
+      }
+      if (!formData.recipient) {
+        showStatus("❌ Penerima harus dipilih", "error");
+        setLoading(false);
+        return;
+      }
+      if (!formData.message) {
+        showStatus("❌ Pesan harus diisi", "error");
+        setLoading(false);
+        return;
+      }
+      if (!formData.scheduled_at) {
+        showStatus("❌ Waktu jadwal harus diisi", "error");
+        setLoading(false);
+        return;
+      }
+
       const payload = {
         ...formData,
         scheduled_at: formData.scheduled_at ? new Date(formData.scheduled_at).toISOString() : "",
@@ -141,16 +163,24 @@ const ScheduledMessages = () => {
         schedule_type: formData.schedule_type,
       };
       console.log("📤 Sending payload:", JSON.stringify(payload, null, 2));
+      console.log("📝 Editing ID:", editingId);
+
       const res = editingId
         ? await automationAPI.updateScheduled(editingId, payload)
         : await automationAPI.addScheduled(payload);
+
+      console.log("📊 API Response:", res);
+
       if (res.data.success) {
         showStatus(editingId ? "✅ Jadwal diperbarui" : "✅ Berhasil menjadwalkan pesan", "success");
         console.log("✅ Response data:", JSON.stringify(res.data.data, null, 2));
         resetForm();
         fetchScheduled();
+      } else {
+        showStatus("❌ Gagal: " + (res.data.error || "Unknown error"), "error");
       }
     } catch (err) {
+      console.error("❌ Submit error:", err);
       showStatus("❌ Gagal menjadwalkan pesan: " + (err.response?.data?.error || err.message), "error");
     } finally {
       setLoading(false);
@@ -158,8 +188,9 @@ const ScheduledMessages = () => {
   };
 
   const handleEdit = (item) => {
+    console.log("📝 Editing item:", item);
     setEditingId(item.id);
-    setFormData({
+    const editData = {
       session: item.session || "",
       recipientType: item.type || "individual",
       recipient: item.recipient || "",
@@ -167,7 +198,9 @@ const ScheduledMessages = () => {
       media_url: item.media_url || "",
       scheduled_at: item.scheduled_at ? formatDateTimeLocal(new Date(item.scheduled_at)) : "",
       schedule_type: item.schedule_type || "once",
-    });
+    };
+    console.log("📝 Setting form data:", editData);
+    setFormData(editData);
   };
 
   const handleCancelEdit = () => {
@@ -349,6 +382,10 @@ const ScheduledMessages = () => {
               type="submit"
               disabled={loading}
               className={`btn-primary w-full py-4 text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+              onClick={(e) => {
+                console.log("🔘 Submit button clicked, editingId:", editingId);
+                console.log("🔘 Form data:", formData);
+              }}
             >
               {loading ? "Memproses..." : editingId ? "Update Jadwal" : "Jadwalkan Pesan"}
             </button>
