@@ -19,11 +19,16 @@ export const env = z
     DB_NAME: z.string().default("whatsapp"),
     DB_USER: z.string().default("casaos"),
     DB_PASSWORD: z.string().default("casaos"),
+    ALLOW_SELF_MESSAGES: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
   })
   .parse(process.env);
 
 // Log configuration (without password)
 console.log("🔧 Environment Configuration:");
+console.log("ALLOW_SELF_MESSAGES:", env.ALLOW_SELF_MESSAGES);
 console.log("NODE_ENV:", env.NODE_ENV);
 console.log("PORT:", env.PORT);
 console.log("DB_HOST:", env.DB_HOST);

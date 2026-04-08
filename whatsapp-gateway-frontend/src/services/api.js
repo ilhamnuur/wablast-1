@@ -214,6 +214,7 @@ export const automationAPI = {
   // Scheduled Messages
   getScheduled: () => api.get("/scheduled"),
   addScheduled: (data) => api.post("/scheduled", data),
+  updateScheduled: (id, data) => api.put(`/scheduled/${id}`, data),
   deleteScheduled: (id) => api.delete(`/scheduled/${id}`),
 
   // Auto Replies
@@ -225,6 +226,25 @@ export const automationAPI = {
 
 // Upload service endpoints
 export const uploadServices = {
+  "local-gateway": {
+    url: (process.env.REACT_APP_API_URL || "http://10.10.10.195:5001") + "/upload",
+    headers: {
+      'key': process.env.REACT_APP_API_KEY || "your-secret-key"
+    },
+    formField: "file",
+    responseField: "url",
+    description: "🎯 Local Gateway (FAST & RELIABLE)",
+    maxSizeMB: 500,
+    priority: 0,
+    whatsappCompatible: true,
+    documentPriority: 0,
+    directAccess: true,
+    tier: 1,
+    reliability: "highest",
+    proven: true,
+    corsProof: true,
+    method: "direct",
+  },
   tmpfiles: {
     url: "https://tmpfiles.org/api/v1/upload",
     headers: {},

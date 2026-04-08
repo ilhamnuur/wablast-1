@@ -16,6 +16,7 @@ import { createProfileController } from "./controllers/profile";
 import { createContactController } from "./controllers/contact";
 import { createScheduledController } from "./controllers/scheduled";
 import { createAutoreplyController } from "./controllers/autoreply";
+import { createUploadController } from "./controllers/upload";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { getPool, query } from "./db/connection";
 import { runMigrations } from "./db/migrations";
@@ -126,6 +127,10 @@ app.route("/scheduled", createScheduledController());
  * autoreply routes
  */
 app.route("/autoreply", createAutoreplyController());
+/**
+ * upload routes
+ */
+app.route("/upload", createUploadController());
 
 const port = env.PORT;
 
@@ -193,6 +198,20 @@ async function processScheduledMessages() {
     );
 
     for (const msg of result.rows) {
+      const scheduledAt = new Date(msg.scheduled_at);
+      const dayOfWeek = scheduledAt.getDay();
+      const scheduleType = msg.schedule_type || "once";
+      const isValidDay =
+        scheduleType === "every_day" ||
+        scheduleType === "once" ||
+        (scheduleType === "working_days" && dayOfWeek >= 1 && dayOfWeek <= 5) ||
+        (scheduleType === "holidays" && (dayOfWeek === 0 || dayOfWeek === 6));
+
+      if (!isValidDay) {
+        console.log(`⏳ Skipping scheduled message ${msg.id} because schedule_type ${scheduleType} does not match day ${dayOfWeek}`);
+        continue;
+      }
+
       console.log(`⏰ Sending scheduled message to ${msg.recipient}`);
       try {
         if (msg.type === "blast") {
@@ -257,30 +276,52 @@ async function processScheduledMessages() {
 setInterval(processScheduledMessages, 60000);
 
 // Auto-Reply Logic
+const extractMessageText = (msg: any): string => {
+  const message = msg?.message;
+  if (!message) return "";
+  const innerMessage =
+    message.viewOnceMessage?.message ||
+    message.ephemeralMessage?.message ||
+    message;
+
+  return (
+    innerMessage.conversation ||
+    innerMessage.extendedTextMessage?.text ||
+    innerMessage.imageMessage?.caption ||
+    innerMessage.videoMessage?.caption ||
+    innerMessage.documentMessage?.caption ||
+    innerMessage.contactMessage?.displayName ||
+    innerMessage.locationMessage?.comment ||
+    innerMessage.liveLocationMessage?.caption ||
+    innerMessage.buttonsResponseMessage?.selectedButtonId ||
+    innerMessage.templateButtonReplyMessage?.selectedId ||
+    innerMessage.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    ""
+  ).trim();
+};
+
 whastapp.onMessageReceived(async (msg) => {
-  console.log('📩 Received message:', msg);
-  if (msg.key.fromMe) return;
+  console.log('📩 Full Message Object:', JSON.stringify(msg, null, 2));
+  if (msg.key.fromMe && !env.ALLOW_SELF_MESSAGES) return;
 
   const sessionId = msg.sessionId;
-  console.log('🔑 Session ID:', sessionId);
   const from = msg.key.remoteJid?.split("@")[0];
-  const messageText = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+  const messageText = extractMessageText(msg);
 
   if (!messageText) return;
 
   try {
     const result = await query(
-      "SELECT * FROM auto_replies WHERE session = $1 AND is_active = true AND $2 ILIKE '%' || keyword || '%'",
+      "SELECT * FROM auto_replies WHERE session = $1 AND LOWER(keyword) = LOWER($2) AND is_active = true LIMIT 1",
       [sessionId, messageText]
     );
-    console.log('🔎 Auto-reply query result count:', result.rowCount);
+
     if (result.rows.length > 0) {
       const reply = result.rows[0];
-      // Ensure schedule_type has a fallback
       const scheduleType = reply.schedule_type || 'all';
       let shouldReply = true;
       const now = new Date();
-      const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+      const currentDay = now.getDay();
       const currentTimeStr = now.toTimeString().split(" ")[0] || "00:00:00";
 
       if (scheduleType === "working_hours") {
@@ -293,8 +334,12 @@ whastapp.onMessageReceived(async (msg) => {
         shouldReply = isWeekend || isNotWorkTime;
       } else if (scheduleType === "custom") {
         if (reply.custom_days) {
-          const daysMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
-          const allowedDays = reply.custom_days.split(",").map((d) => daysMap[d.trim().toLowerCase()]);
+          const daysMap: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+          const allowedDays = reply.custom_days
+            .split(",")
+            .map((d: string) => d.trim().toLowerCase())
+            .map((day: string) => daysMap[day])
+            .filter((value: number | undefined): value is number => typeof value === "number");
           shouldReply = allowedDays.includes(currentDay);
         }
         if (shouldReply && reply.start_time && reply.end_time) {
@@ -305,16 +350,14 @@ whastapp.onMessageReceived(async (msg) => {
       if (shouldReply) {
         console.log(`🤖 Auto-replying to ${from} with keyword "${reply.keyword}"`);
         await whastapp.sendTextMessage({
-          sessionId: sessionId,
+          sessionId,
           to: from!,
           text: reply.response,
         });
-      } else {
-        console.log('⏸️ Auto-reply suppressed due to schedule constraints');
       }
     }
   } catch (error) {
-    console.error("❌ Auto-reply error:", error);
+    console.error('❌ Error processing auto reply:', error);
   }
 });
 

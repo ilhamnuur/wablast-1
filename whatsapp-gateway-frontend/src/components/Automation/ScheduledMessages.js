@@ -35,19 +35,70 @@ const ScheduledMessages = () => {
     message: "",
     media_url: "",
     scheduled_at: "",
-    schedule_type: "every_day",
+    schedule_type: "once",
   });
+  const [editingId, setEditingId] = useState(null);
 
-  useEffect(() => {
-    fetchScheduled();
-    fetchGroups();
-  }, []);
+  const formatDateTimeLocal = (date) => {
+    const pad = (value) => String(value).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const parseDateTimeLocal = (value) => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const isValidScheduleDay = (scheduleType, date) => {
+    const day = date.getDay();
+    if (scheduleType === "working_days") {
+      return day >= 1 && day <= 5;
+    }
+    if (scheduleType === "holidays") {
+      return day === 0 || day === 6;
+    }
+    return true;
+  };
+
+  const getNextValidScheduleDate = (scheduleType, date) => {
+    if (!date || scheduleType === "every_day") return date;
+    const nextDate = new Date(date.getTime());
+    if (scheduleType === "working_days") {
+      while (!isValidScheduleDay(scheduleType, nextDate)) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+    }
+    if (scheduleType === "holidays") {
+      while (!isValidScheduleDay(scheduleType, nextDate)) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+    }
+    return nextDate;
+  };
+
+  const adjustScheduledAt = (value, scheduleType) => {
+    const date = parseDateTimeLocal(value);
+    if (!date) return value;
+    const adjusted = getNextValidScheduleDate(scheduleType, date);
+    return formatDateTimeLocal(adjusted);
+  };
+
+  const normalizeScheduleType = (type) => {
+    if (!type) return "every_day";
+    if (type === "all") return "every_day";
+    return type;
+  };
 
   const fetchScheduled = async () => {
     try {
       const res = await automationAPI.getScheduled();
       if (res.data.success) {
-        setScheduledList(res.data.data);
+        const normalized = res.data.data.map((item) => ({
+          ...item,
+          schedule_type: normalizeScheduleType(item.schedule_type),
+        }));
+        console.log("📋 Scheduled messages from API:", JSON.stringify(normalized, null, 2));
+        setScheduledList(normalized);
       }
     } catch (err) {
       console.error("Failed to fetch scheduled messages", err);
@@ -66,6 +117,19 @@ const ScheduledMessages = () => {
     }
   };
 
+  const resetForm = () => {
+    setEditingId(null);
+    setFormData({
+      session: "",
+      recipientType: "individual",
+      recipient: "",
+      message: "",
+      media_url: "",
+      scheduled_at: "",
+      schedule_type: "once",
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -74,19 +138,16 @@ const ScheduledMessages = () => {
         ...formData,
         scheduled_at: formData.scheduled_at ? new Date(formData.scheduled_at).toISOString() : "",
         type: formData.recipientType,
+        schedule_type: formData.schedule_type,
       };
-      const res = await automationAPI.addScheduled(payload);
+      console.log("📤 Sending payload:", JSON.stringify(payload, null, 2));
+      const res = editingId
+        ? await automationAPI.updateScheduled(editingId, payload)
+        : await automationAPI.addScheduled(payload);
       if (res.data.success) {
-        showStatus("✅ Berhasil menjadwalkan pesan", "success");
-        setFormData({
-          session: "",
-          recipientType: "individual",
-          recipient: "",
-          message: "",
-          media_url: "",
-          scheduled_at: "",
-          schedule_type: "every_day",
-        });
+        showStatus(editingId ? "✅ Jadwal diperbarui" : "✅ Berhasil menjadwalkan pesan", "success");
+        console.log("✅ Response data:", JSON.stringify(res.data.data, null, 2));
+        resetForm();
         fetchScheduled();
       }
     } catch (err) {
@@ -96,11 +157,31 @@ const ScheduledMessages = () => {
     }
   };
 
+  const handleEdit = (item) => {
+    setEditingId(item.id);
+    setFormData({
+      session: item.session || "",
+      recipientType: item.type || "individual",
+      recipient: item.recipient || "",
+      message: item.message || "",
+      media_url: item.media_url || "",
+      scheduled_at: item.scheduled_at ? formatDateTimeLocal(new Date(item.scheduled_at)) : "",
+      schedule_type: item.schedule_type || "once",
+    });
+  };
+
+  const handleCancelEdit = () => {
+    resetForm();
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm("Hapus jadwal ini?")) return;
     try {
       await automationAPI.deleteScheduled(id);
       showStatus("✅ Jadwal dihapus", "success");
+      if (editingId === id) {
+        resetForm();
+      }
       fetchScheduled();
     } catch (err) {
       showStatus("❌ Gagal menghapus jadwal", "error");
@@ -109,6 +190,7 @@ const ScheduledMessages = () => {
 
   const getDayName = (dateString) => {
     const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "Tanggal tidak valid";
     return date.toLocaleDateString('id-ID', { weekday: 'long' });
   };
 
@@ -187,13 +269,13 @@ const ScheduledMessages = () => {
 
             <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Waktu Kirim
+                  Mulai kirim pada tanggal dan waktu kapan
                 </label>
                 <input
-                  type="time"
+                  type="datetime-local"
                   className="form-input w-full"
                   value={formData.scheduled_at}
-                  onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, scheduled_at: adjustScheduledAt(e.target.value, formData.schedule_type) })}
                   required
                 />
                 {formData.scheduled_at && (
@@ -206,12 +288,32 @@ const ScheduledMessages = () => {
                 <select
                   className="form-input w-full"
                   value={formData.schedule_type}
-                  onChange={(e) => setFormData({ ...formData, schedule_type: e.target.value })}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    console.log("📋 Schedule type changed to:", nextType);
+                    setFormData({
+                      ...formData,
+                      schedule_type: nextType,
+                      scheduled_at: formData.scheduled_at
+                        ? adjustScheduledAt(formData.scheduled_at, nextType)
+                        : "",
+                    });
+                  }}
                 >
+                  <option value="once">Sekali Kirim</option>
                   <option value="every_day">Setiap Hari</option>
                   <option value="working_days">Hari Kerja (Senin‑Jumat)</option>
                   <option value="holidays">Hari Libur</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.schedule_type === "working_days"
+                    ? "Tanggal akan disesuaikan ke hari kerja terdekat."
+                    : formData.schedule_type === "holidays"
+                    ? "Tanggal akan disesuaikan ke akhir pekan terdekat."
+                    : formData.schedule_type === "once"
+                    ? "Pesan akan dikirim satu kali pada tanggal dan waktu yang dipilih."
+                    : "Pesan akan dikirim setiap hari pada waktu yang dipilih."}
+                </p>
               </div>
           </div>
 
@@ -242,13 +344,24 @@ const ScheduledMessages = () => {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`btn-primary w-full py-4 text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            {loading ? "Memproses..." : "Jadwalkan Pesan"}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`btn-primary w-full py-4 text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {loading ? "Memproses..." : editingId ? "Update Jadwal" : "Jadwalkan Pesan"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="btn-secondary w-full py-4 text-lg border border-gray-300 rounded-2xl text-gray-700 hover:bg-gray-100"
+              >
+                Batal Edit
+              </button>
+            )}
+          </div>
         </form>
       </div>
 
@@ -283,6 +396,23 @@ const ScheduledMessages = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-bold text-gray-900">{getDayName(item.scheduled_at)}</div>
                       <div className="text-xs text-gray-500">{new Date(item.scheduled_at).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-1 uppercase tracking-wide">
+                        {(() => {
+                          const type = item.schedule_type ?? "every_day";
+                          switch(type) {
+                            case "once":
+                              return "Sekali Kirim";
+                            case "every_day":
+                              return "Setiap Hari";
+                            case "working_days":
+                              return "Hari Kerja";
+                            case "holidays":
+                              return "Hari Libur";
+                            default:
+                              return `Tidak Diketahui (${type})`;
+                          }
+                        })()}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
@@ -292,10 +422,16 @@ const ScheduledMessages = () => {
                         {item.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-right space-y-2">
+                      <button 
+                        onClick={() => handleEdit(item)}
+                        className="text-indigo-600 hover:text-indigo-800 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-all w-full"
+                      >
+                        Edit
+                      </button>
                       <button 
                         onClick={() => handleDelete(item.id)}
-                        className="text-red-400 hover:text-red-600 font-bold text-sm bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-all"
+                        className="text-red-400 hover:text-red-600 font-bold text-sm bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-all w-full"
                       >
                         Hapus
                       </button>
