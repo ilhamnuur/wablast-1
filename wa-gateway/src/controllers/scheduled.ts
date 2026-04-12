@@ -7,7 +7,7 @@ const scheduledSchema = z.object({
   session: z.string().min(1, "Session is required"),
   recipient: z.string().min(1, "Recipient is required"),
   message: z.string().min(1, "Message is required"),
-  media_url: z.string().optional(),
+  media_url: z.string().optional().nullable(),
   scheduled_at: z.string().min(1, "Scheduled time is required"),
   type: z.enum(["individual", "blast"]).default("individual"),
   schedule_type: z.enum(["once", "every_day", "working_days", "holidays"]).default("once"),
@@ -17,10 +17,10 @@ export const createScheduledController = () => {
   const app = new Hono();
 
   const normalizeScheduleType = (type: string | null | undefined) => {
-    if (!type) return "every_day";
+    if (!type) return "once";
     if (type === "all") return "every_day";
     if (["once", "every_day", "working_days", "holidays"].includes(type)) return type;
-    return "every_day";
+    return "once";
   };
 
   // Get all scheduled messages

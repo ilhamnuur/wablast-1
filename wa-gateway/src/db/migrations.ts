@@ -16,6 +16,7 @@ export async function runMigrations() {
         status TEXT DEFAULT 'pending',
         type TEXT DEFAULT 'individual',
         schedule_type TEXT DEFAULT 'once',
+        error_message TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
@@ -28,9 +29,11 @@ export async function runMigrations() {
       await query("ALTER TABLE scheduled_messages ALTER COLUMN updated_at TYPE TIMESTAMPTZ");
       // Add schedule_type column if not exists (for backward compatibility)
       await query("ALTER TABLE scheduled_messages ADD COLUMN IF NOT EXISTS schedule_type TEXT DEFAULT 'once'");
+      // Add error_message column
+      await query("ALTER TABLE scheduled_messages ADD COLUMN IF NOT EXISTS error_message TEXT");
       // Update any existing rows with invalid schedule_type values
       await query("UPDATE scheduled_messages SET schedule_type = 'once' WHERE schedule_type NOT IN ('once', 'every_day', 'working_days', 'holidays')");
-      console.log("✅ Table 'scheduled_messages' columns updated to TIMESTAMPTZ and schedule_type corrected");
+      console.log("✅ Table 'scheduled_messages' columns updated to TIMESTAMPTZ and schedule_type, error_message corrected");
     } catch (e) {
       console.log("⚠️ Failed to alter columns in 'scheduled_messages':", e);
     }

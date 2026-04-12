@@ -84,7 +84,9 @@ const ScheduledMessages = () => {
   };
 
   const normalizeScheduleType = (type) => {
-    if (!type) return "every_day";
+    if (!type) return "once";
+    if (type === "all") return "every_day";
+    // Also handle "all" for backward compatibility if it appears in schedule_type
     if (type === "all") return "every_day";
     return type;
   };
@@ -156,9 +158,48 @@ const ScheduledMessages = () => {
         return;
       }
 
+      // Safely parse datetime-local string to local Date object
+      let isoScheduledAt = "";
+      if (formData.scheduled_at) {
+        try {
+          const [datePart, timePart] = formData.scheduled_at.split("T");
+          if (datePart && timePart) {
+            const [year, month, day] = datePart.split("-").map(Number);
+            const [hour, minute] = timePart.split(":").map(Number);
+            
+            const localDate = new Date(year, month - 1, day, hour, minute);
+            if (!Number.isNaN(localDate.getTime())) {
+              isoScheduledAt = localDate.toISOString();
+            } else {
+              throw new Error("Invalid date selected");
+            }
+          } else {
+            // Fallback for some browsers that might send ISO
+            const fallbackDate = new Date(formData.scheduled_at);
+            if (!Number.isNaN(fallbackDate.getTime())) {
+              isoScheduledAt = fallbackDate.toISOString();
+            }
+          }
+        } catch (dateErr) {
+          console.error("❌ Date parsing error:", dateErr);
+          showStatus("❌ Format tanggal/waktu tidak valid", "error");
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (!isoScheduledAt) {
+        showStatus("❌ Gagal memproses waktu jadwal. Silakan pilih kembali.", "error");
+        setLoading(false);
+        return;
+      }
+
       const payload = {
-        ...formData,
-        scheduled_at: formData.scheduled_at ? new Date(formData.scheduled_at).toISOString() : "",
+        session: formData.session,
+        recipient: formData.recipient?.trim(),
+        message: formData.message,
+        media_url: formData.media_url || null,
+        scheduled_at: isoScheduledAt,
         type: formData.recipientType,
         schedule_type: formData.schedule_type,
       };
@@ -304,13 +345,23 @@ const ScheduledMessages = () => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
                   Mulai kirim pada tanggal dan waktu kapan
                 </label>
-                <input
-                  type="datetime-local"
-                  className="form-input w-full"
-                  value={formData.scheduled_at}
-                  onChange={(e) => setFormData({ ...formData, scheduled_at: adjustScheduledAt(e.target.value, formData.schedule_type) })}
-                  required
-                />
+                <div className="relative group">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors">
+                    📅
+                  </span>
+                  <input
+                    type="datetime-local"
+                    className="form-input w-full pl-12 cursor-pointer"
+                    value={formData.scheduled_at}
+                    onChange={(e) => setFormData({ ...formData, scheduled_at: adjustScheduledAt(e.target.value, formData.schedule_type) })}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try { e.target.showPicker(); } catch(err) {}
+                      }
+                    }}
+                    required
+                  />
+                </div>
                 {formData.scheduled_at && (
                   <p className="text-xs text-indigo-500 font-bold mt-1">Hari: {getDayName(formData.scheduled_at)}</p>
                 )}
@@ -458,6 +509,11 @@ const ScheduledMessages = () => {
                           'bg-indigo-50 text-indigo-700 border border-indigo-100'}`}>
                         {item.status.toUpperCase()}
                       </span>
+                      {item.status === 'failed' && item.error_message && (
+                        <div className="text-[10px] text-red-500 mt-1 max-w-[150px] break-words whitespace-normal leading-tight font-medium" title={item.error_message}>
+                          Error: {item.error_message}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="inline-flex items-center gap-2">

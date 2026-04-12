@@ -272,10 +272,15 @@ const AutoReply = () => {
                         ${item.schedule_type === 'working_hours' ? 'bg-green-50 text-green-700' : 
                           item.schedule_type === 'outside_working_hours' ? 'bg-orange-50 text-orange-700' : 
                           item.schedule_type === 'custom' ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600'}`}>
-                        {item.schedule_type === 'working_hours' ? 'Jam Kerja' : 
+                        {item.schedule_type === 'working_hours' ? 'Jam Kerja (07:30-16:00)' : 
                          item.schedule_type === 'outside_working_hours' ? 'Luar Jam Kerja' : 
-                         item.schedule_type === 'custom' ? 'Kustom' : '24 Jam'}
+                         item.schedule_type === 'custom' ? `Kustom (${item.start_time?.substring(0,5) || '00:00'}-${item.end_time?.substring(0,5) || '00:00'})` : '24 Jam'}
                       </span>
+                      {item.schedule_type === 'custom' && item.custom_days && (
+                        <div className="text-[9px] text-gray-400 mt-1 font-medium italic">
+                          Hari: {item.custom_days.split(',').map(d => d.substring(0, 3)).join(', ')}
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button 
