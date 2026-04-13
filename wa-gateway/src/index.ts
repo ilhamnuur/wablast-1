@@ -363,40 +363,63 @@ const extractMessageText = (msg: any): string => {
   if (!message) return "";
 
   // Unwrap various message containers recursively
-  for (let i = 0; i < 5; i++) {
-    if (message.viewOnceMessage) message = message.viewOnceMessage.message;
-    else if (message.viewOnceMessageV2) message = message.viewOnceMessageV2.message;
-    else if (message.viewOnceMessageV2Extension) message = message.viewOnceMessageV2Extension.message;
-    else if (message.ephemeralMessage) message = message.ephemeralMessage.message;
-    else if (message.message) message = message.message; // some versions nest it
-    else break;
+  // This is critical for mobile (Android/iOS) messages which use different wrappers
+  for (let i = 0; i < 10; i++) {
+    if (message.deviceSentMessage) {
+      // Messages sent from another device of the same account (mobile)
+      message = message.deviceSentMessage.message || message.deviceSentMessage;
+    } else if (message.deviceSentMessageV2) {
+      message = message.deviceSentMessageV2.message || message.deviceSentMessageV2;
+    } else if (message.viewOnceMessage) {
+      message = message.viewOnceMessage.message;
+    } else if (message.viewOnceMessageV2) {
+      message = message.viewOnceMessageV2.message;
+    } else if (message.viewOnceMessageV2Extension) {
+      message = message.viewOnceMessageV2Extension.message;
+    } else if (message.ephemeralMessage) {
+      message = message.ephemeralMessage.message;
+    } else if (message.documentWithCaptionMessage) {
+      message = message.documentWithCaptionMessage.message;
+    } else if (message.message) {
+      // some versions nest the message one more level deep
+      message = message.message;
+    } else {
+      break;
+    }
     if (!message) return "";
   }
 
   // Common text fields across different WhatsApp versions and clients
-  return (
+  // Order matters: most common first
+  const text = (
     message.conversation ||
     message.extendedTextMessage?.text ||
-    message.text || // Fallback for some clients
     message.imageMessage?.caption ||
     message.videoMessage?.caption ||
     message.documentMessage?.caption ||
+    message.text ||
     message.contactMessage?.displayName ||
     message.locationMessage?.comment ||
     message.liveLocationMessage?.caption ||
     message.buttonsResponseMessage?.selectedButtonId ||
     message.templateButtonReplyMessage?.selectedId ||
     message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    message.interactiveResponseMessage?.body?.text ||
     ""
   ).trim();
+
+  return text;
 };
 
 whastapp.onMessageReceived(async (msg) => {
-  console.log("📩 Full Message Object:", JSON.stringify(msg, null, 2));
-  
-  // allow both from others and self for better testing experience
-  const allowSelf = env.ALLOW_SELF_MESSAGES === "true" || env.ALLOW_SELF_MESSAGES === undefined;
-  if (msg.key.fromMe && !allowSelf) return;
+  // Only log a compact summary to avoid flooding logs, full object logged only when message text found
+  const debugMode = env.ALLOW_SELF_MESSAGES === "true";
+
+  // Block messages sent by ourselves unless ALLOW_SELF_MESSAGES is true
+  // Note: fromMe=true means this account sent the message (e.g. from another device)
+  if (msg.key.fromMe) {
+    if (!debugMode) return;
+  }
 
   const sessionId = msg.sessionId;
   let remoteJid = msg.key.remoteJid;
@@ -411,16 +434,35 @@ whastapp.onMessageReceived(async (msg) => {
     }
   }
 
+  // Skip status broadcast
+  if (remoteJid === 'status@broadcast') return;
+
   const fromLog = remoteJid.split("@")[0];
   const messageText = extractMessageText(msg);
 
-  if (!messageText) return;
+  // Log compact summary for every incoming message
+  console.log(`📩 [AUTO-REPLY] From: ${fromLog} | Session: ${sessionId} | fromMe: ${msg.key.fromMe} | Text: "${messageText || '(no text)'}"`);
+
+  // If no text extracted, log the raw message structure for debugging
+  if (!messageText) {
+    console.log(`⚠️ [AUTO-REPLY] Could not extract text from message. Keys: ${Object.keys(msg?.message || {}).join(', ')}`);
+    return;
+  }
 
   try {
-    const result = await query(
+    // First try exact match (case-insensitive)
+    let result = await query(
       "SELECT * FROM auto_replies WHERE session = $1 AND LOWER(keyword) = LOWER($2) AND is_active = true LIMIT 1",
-      [sessionId, messageText],
+      [sessionId, messageText.trim()],
     );
+
+    // Fallback: try contains match — keyword anywhere in message
+    if (result.rows.length === 0) {
+      result = await query(
+        "SELECT * FROM auto_replies WHERE session = $1 AND is_active = true AND LOWER($2) LIKE '%' || LOWER(keyword) || '%' ORDER BY LENGTH(keyword) DESC LIMIT 1",
+        [sessionId, messageText.trim()],
+      );
+    }
 
     if (result.rows.length > 0) {
       const reply = result.rows[0];
@@ -476,14 +518,18 @@ whastapp.onMessageReceived(async (msg) => {
 
       if (shouldReply) {
         console.log(
-          `🤖 Auto-replying to ${fromLog} with keyword "${reply.keyword}"`,
+          `🤖 Auto-replying to ${fromLog} with keyword "${reply.keyword}" (match: "${messageText}")`,
         );
         await whastapp.sendTextMessage({
           sessionId,
           to: remoteJid,
           text: reply.response,
         });
+      } else {
+        console.log(`⏰ [AUTO-REPLY] Schedule condition not met for keyword "${reply.keyword}" (scheduleType: ${scheduleType})`);
       }
+    } else {
+      console.log(`🔍 [AUTO-REPLY] No matching keyword found for: "${messageText}"`);
     }
   } catch (error) {
     console.error("❌ Error processing auto reply:", error);
