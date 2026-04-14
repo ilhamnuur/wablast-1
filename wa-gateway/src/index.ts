@@ -352,59 +352,83 @@ async function processScheduledMessages() {
 setInterval(processScheduledMessages, 60000);
 
 // Auto-Reply Logic
-const extractMessageText = (msg: any): string => {
-  let message = msg?.message;
-  if (!message) return "";
+// Normalize message content recursively - adopts Baileys normalizeMessageContent approach
+// This handles all WhatsApp client types: Desktop, Android, iOS
+const normalizeContent = (message: any): any => {
+  if (!message) return null;
 
-  // Handle message editions
-  if (message.editedMessage) {
-    message = message.editedMessage.message || message.editedMessage;
-  }
-  if (!message) return "";
+  // List of container/wrapper types to unwrap (order matters)
+  const wrappers = [
+    'editedMessage',
+    'deviceSentMessage',
+    'deviceSentMessageV2',
+    'viewOnceMessage',
+    'viewOnceMessageV2',
+    'viewOnceMessageV2Extension',
+    'ephemeralMessage',
+    'documentWithCaptionMessage',
+    'productMessage',
+    'groupInviteMessage',
+    'sendPaymentMessage',
+    'requestPaymentMessage',
+    'declinePaymentRequestMessage',
+    'cancelPaymentRequestMessage',
+    'templateMessage',
+    'highlyStructuredMessage',
+    'fastRatchetKeySenderKeyDistributionMessage',
+    'senderKeyDistributionMessage',
+  ];
 
-  // Unwrap various message containers recursively
-  // This is critical for mobile (Android/iOS) messages which use different wrappers
-  for (let i = 0; i < 10; i++) {
-    if (message.deviceSentMessage) {
-      // Messages sent from another device of the same account (mobile)
-      message = message.deviceSentMessage.message || message.deviceSentMessage;
-    } else if (message.deviceSentMessageV2) {
-      message = message.deviceSentMessageV2.message || message.deviceSentMessageV2;
-    } else if (message.viewOnceMessage) {
-      message = message.viewOnceMessage.message;
-    } else if (message.viewOnceMessageV2) {
-      message = message.viewOnceMessageV2.message;
-    } else if (message.viewOnceMessageV2Extension) {
-      message = message.viewOnceMessageV2Extension.message;
-    } else if (message.ephemeralMessage) {
-      message = message.ephemeralMessage.message;
-    } else if (message.documentWithCaptionMessage) {
-      message = message.documentWithCaptionMessage.message;
-    } else if (message.message) {
-      // some versions nest the message one more level deep
-      message = message.message;
-    } else {
-      break;
+  for (let depth = 0; depth < 10; depth++) {
+    let unwrapped = false;
+    for (const wrapper of wrappers) {
+      if (message[wrapper]) {
+        const inner = message[wrapper];
+        // Check if the wrapper has a .message property (nested further)
+        message = inner.message || inner;
+        unwrapped = true;
+        break;
+      }
     }
-    if (!message) return "";
+    // If nothing was unwrapped OR if message.message exists, try one more level
+    if (!unwrapped) {
+      if (message.message && typeof message.message === 'object') {
+        message = message.message;
+      } else {
+        break;
+      }
+    }
+    if (!message) return null;
   }
+  return message;
+};
 
-  // Common text fields across different WhatsApp versions and clients
-  // Order matters: most common first
+const extractMessageText = (msg: any): string => {
+  const rawMessage = msg?.message;
+  if (!rawMessage) return "";
+
+  // Normalize/unwrap nested containers
+  const content = normalizeContent(rawMessage);
+  if (!content) return "";
+
+  // Extract text from all known content types
   const text = (
-    message.conversation ||
-    message.extendedTextMessage?.text ||
-    message.imageMessage?.caption ||
-    message.videoMessage?.caption ||
-    message.documentMessage?.caption ||
-    message.text ||
-    message.contactMessage?.displayName ||
-    message.locationMessage?.comment ||
-    message.liveLocationMessage?.caption ||
-    message.buttonsResponseMessage?.selectedButtonId ||
-    message.templateButtonReplyMessage?.selectedId ||
-    message.listResponseMessage?.singleSelectReply?.selectedRowId ||
-    message.interactiveResponseMessage?.body?.text ||
+    content.conversation ||
+    content.extendedTextMessage?.text ||
+    content.imageMessage?.caption ||
+    content.videoMessage?.caption ||
+    content.documentMessage?.caption ||
+    content.audioMessage?.caption ||
+    content.stickerMessage?.caption ||
+    content.contactMessage?.displayName ||
+    content.locationMessage?.comment ||
+    content.liveLocationMessage?.caption ||
+    content.buttonsResponseMessage?.selectedButtonId ||
+    content.templateButtonReplyMessage?.selectedId ||
+    content.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    content.interactiveResponseMessage?.body?.text ||
+    content.pollCreationMessage?.name ||
+    content.text ||
     ""
   ).trim();
 
@@ -412,18 +436,22 @@ const extractMessageText = (msg: any): string => {
 };
 
 whastapp.onMessageReceived(async (msg) => {
-  // Only log a compact summary to avoid flooding logs, full object logged only when message text found
   const debugMode = env.ALLOW_SELF_MESSAGES === "true";
 
   // Block messages sent by ourselves unless ALLOW_SELF_MESSAGES is true
-  // Note: fromMe=true means this account sent the message (e.g. from another device)
   if (msg.key.fromMe) {
     if (!debugMode) return;
   }
 
+  // Skip if no message content at all
+  if (!msg.message) return;
+
   const sessionId = msg.sessionId;
   let remoteJid = msg.key.remoteJid;
   if (!remoteJid) return;
+
+  // Skip status broadcast
+  if (remoteJid === 'status@broadcast') return;
 
   // Clean remoteJid from device suffixes (e.g. 628123@s.whatsapp.net:1)
   // This is crucial for replying correctly to mobile senders
@@ -434,18 +462,26 @@ whastapp.onMessageReceived(async (msg) => {
     }
   }
 
-  // Skip status broadcast
-  if (remoteJid === 'status@broadcast') return;
+  // Determine sender JID - for groups, use participant; for DM, use remoteJid
+  const isGroup = remoteJid.endsWith('@g.us');
+  const senderJid = isGroup
+    ? (msg.key.participant || (msg as any).participant || remoteJid)
+    : remoteJid;
 
-  const fromLog = remoteJid.split("@")[0];
+  const fromLog = senderJid.split("@")[0];
+
+  // Extract text using the robust normalizer
   const messageText = extractMessageText(msg);
 
   // Log compact summary for every incoming message
-  console.log(`📩 [AUTO-REPLY] From: ${fromLog} | Session: ${sessionId} | fromMe: ${msg.key.fromMe} | Text: "${messageText || '(no text)'}"`);
+  console.log(`📩 [AUTO-REPLY] From: ${fromLog} (${isGroup ? 'group' : 'private'}) | Session: ${sessionId} | fromMe: ${msg.key.fromMe} | Text: "${messageText || '(no text)'}"`);
 
-  // If no text extracted, log the raw message structure for debugging
+  // If no text extracted, log the raw message keys for debugging without stopping
   if (!messageText) {
-    console.log(`⚠️ [AUTO-REPLY] Could not extract text from message. Keys: ${Object.keys(msg?.message || {}).join(', ')}`);
+    const topLevelKeys = Object.keys(msg?.message || {}).join(', ');
+    const normalizedContent = normalizeContent(msg.message);
+    const normalizedKeys = normalizedContent ? Object.keys(normalizedContent).join(', ') : 'null';
+    console.log(`⚠️ [AUTO-REPLY] No text extracted. Raw keys: [${topLevelKeys}] | Normalized keys: [${normalizedKeys}]`);
     return;
   }
 
